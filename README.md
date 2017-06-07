@@ -106,7 +106,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	}
 	aLifecycleOwner.getLifecycle().addObserver(new MyObserver());
 ###LifecycleOwner
-LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接口的类拥有生命周期。一般的实现是在调用某个回调时会判断下当前的Life这样之前的定位代码可以重写为：
+LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接口的类拥有生命周期。一般的实现是在调用某个回调时会判断下当前的Lifecycle的当前state是否是合适的状态，这样之前的定位代码可以重写为：
 
 	class MyActivity extends LifecycleActivity {
 	    private MyLocationListener myLocationListener;
@@ -149,8 +149,196 @@ LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接
 	    }
 	}
 ###LiveData
+LiveData是一个data holder，一个里面保存了一个value，并且这个value是可以被观察的，和传统的observable不一样的是，LiveData可以对app组件的生命周期做出响应，LiveData可以指定一个可以观察的Lifecycle，LiveData认为当 Observer的Lifecycle是STARTED或者RESUMED状态的时候，才算是激活状态，再onChaged的时候，才会通知这个Observer。
+
+	public class LocationLiveData extends LiveData<Location> {
+	    private LocationManager locationManager;
+	
+	    private SimpleLocationListener listener = new SimpleLocationListener() {
+	        @Override
+	        public void onLocationChanged(Location location) {
+	            setValue(location);
+	        }
+	    };
+	
+	    public LocationLiveData(Context context) {
+	        locationManager = (LocationManager) context.getSystemService(
+	                Context.LOCATION_SERVICE);
+	    }
+	
+	    @Override
+	    protected void onActive() {
+	        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, listener);
+	    }
+	
+	    @Override
+	    protected void onInactive() {
+	        locationManager.removeUpdates(listener);
+	    }
+	}
+onActive()
+
+这个方法会在LiveData有处于Active状态的observer时调用
+
+onInactive()
+
+这个方法会在LiveData没有任何处于Active状态的Observer调用
+
+setValue()
+
+使用这个方法更新LiveData所持有的value值，并通知Active状态的observers value改变了
+
+	public class MyFragment extends LifecycleFragment {
+	    public void onActivityCreated (Bundle savedInstanceState) {
+	        LiveData<Location> myLocationListener = ...;
+	        Util.checkUserStatus(result -> {
+	            if (result) {
+	                myLocationListener.Observer(this, location -> {
+	                    // update UI
+	                });
+	            }
+	        });
+	    }
+	}
+
+observer方法的方法声明是public void observe(LifecycleOwner owner, Observer<T> observer)，可以看到第一个参数是LifecycleOwner，这表明这个observer是和一个Lifecycle绑定的在中情况下：
+
+- 如果Lifecycle处于非激活状态，即使在value改变的时候，observer也不会被调用
+- 如果Lifecycle处于destroyed，该observer就会被自动移除
+
+LiveData既然是生命周期可知的，我们可以在多个activity和fragments里共享一个LiveData
+	
+	public class LocationLiveData extends LiveData<Location> {
+	    private static LocationLiveData sInstance;
+	    private LocationManager locationManager;
+	
+	    @MainThread
+	    public static LocationLiveData get(Context context) {
+	        if (sInstance == null) {
+	            sInstance = new LocationLiveData(context.getApplicationContext());
+	        }
+	        return sInstance;
+	    }
+	
+	    private SimpleLocationListener listener = new SimpleLocationListener() {
+	        @Override
+	        public void onLocationChanged(Location location) {
+	            setValue(location);
+	        }
+	    };
+	
+	    private LocationLiveData(Context context) {
+	        locationManager = (LocationManager) context.getSystemService(
+	                Context.LOCATION_SERVICE);
+	    }
+	
+	    @Override
+	    protected void onActive() {
+	        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, listener);
+	    }
+	
+	    @Override
+	    protected void onInactive() {
+	        locationManager.removeUpdates(listener);
+	    }
+	}
+	
+	public class MyFragment extends LifecycleFragment {
+	    public void onActivityCreated (Bundle savedInstanceState) {
+	        Util.checkUserStatus(result -> {
+	            if (result) {
+	                LocationLiveData.get(getActivity()).observe(this, location -> {
+	                   // update UI
+	                });
+	            }
+	        });
+	  }
+	}
+
+LiveData还支持转换：
+
+	LiveData<User> userLiveData = ...;
+	LiveData<String> userName = Transformations.map(userLiveData, user -> {
+	    user.name + " " + user.lastName
+	});
+
+LiveData有以下几个优点：
+
+- 没有内存泄露：因为每个observer都绑定到它们自己的Lifecycle对象，当Lifecycle状态是destroyed的时候会自动清除的个observer
+- stop activity的时候不会引起crash：如果observer的Lifcycle处于inactive状态的时候，不会收到change事件
+- 始终保持最新的数据:如果Lifecycle从inactive到active时，会收到最新的data
+- 如果activity或者fragment重新创建，比如屏幕旋转的时候，它会立即收到最新的data
+- 资源共享：比如定位，可以实现一个LocationListener，仅连接一次服务，就可以为app中的所有observer提供数据
+- 不用再手动的处理生命周期事件：在需要观察数据的时候，不用担心start或者stop的调用，LiveData自动的处理了这些流程
+
 ###ViewModel
-###项目中使用Architecture components中的Lifecycles
+ViewModel是用来存储和管理ui相关的数据，以保证在configuration改变的时候，数据也能存活下来
+activity和fragment都有被Android Framework管理的生命周期，fragment可以决定，什么什么时候destroy或者re-created它们。这样的话在activity或者fragmnet中保存的数据就会丢失。比如activity中有一个users list，当activity重建或者configuration改变的时候，新的activity就得重新获取user list。Activity虽然可以用 onSaveInstanceState()来存储数据，然后再Oncreate方法中从bundle恢复数据，但是这种方式只适合简单的数据，不太适合大量的数据。
+
+另一个问题是这些ui控件经常需要做一些比较耗时的异步操作，需要的destroy的时候清理这些异步操作，以防止内存泄露。而且在重建这些节目的时候，会重新发起相同的请求。
+这些ui组件也需要处理用户交互操作，和与操作系统交互，一个类可能要处理很多的工作而不是把工作代理的其他类里面，导致类里面代码量膨胀，可维护性变差。
+
+	public class MyViewModel extends ViewModel {
+	    private MutableLiveData<List<User>> users;
+	    public LiveData<List<User>> getUsers() {
+	        if (users == null) {
+	            users = new MutableLiveData<List<Users>>();
+	            loadUsers();
+	        }
+	        return users;
+	    }
+	
+	    private void loadUsers() {
+	        // do async operation to fetch users
+	    }
+	}
+
+	public class MyActivity extends AppCompatActivity {
+	    public void onCreate(Bundle savedInstanceState) {
+	        MyViewModel model = ViewModelProviders.of(this).get(MyViewModel.class);
+	        model.getUsers().observe(this, users -> {
+	            // update UI
+	        });
+	    }
+	}
+当activity重建的时候，它获取到上一个activity创建的MyViewModel对象，当activity finished的时候，framework会调用ViewModel的onClear()方法来释放资源
+
+###在Fragment之间共享数据
+	public class SharedViewModel extends ViewModel {
+	    private final MutableLiveData<Item> selected = new MutableLiveData<Item>();
+	
+	    public void select(Item item) {
+	        selected.setValue(item);
+	    }
+	
+	    public LiveData<Item> getSelected() {
+	        return selected;
+	    }
+	}
+	
+	public class MasterFragment extends Fragment {
+	    private SharedViewModel model;
+	    public void onActivityCreated() {
+	        model = ViewModelProviders.of(getActivity()).get(SharedViewModel.class);
+	        itemSelector.setOnClickListener(item -> {
+	            model.select(item);
+	        });
+	    }
+	}
+	
+	public class DetailFragment extends LifecycleFragment {
+	    public void onActivityCreated() {
+	        SharedViewModel model = ViewModelProviders.of(getActivity()).get(SharedViewModel.class);
+	        model.getSelected().observe(this, { item ->
+	           // update UI
+	        });
+	    }
+	}
+
+###ViewModel的生命周期
+<center>![](http://i.imgur.com/iQvS6ze.png)</center>
+
+#项目中使用Architecture components中的Lifecycles
 
 	allprojects {
 	    repositories {
