@@ -1,7 +1,9 @@
 ## Android架构组件
+
 <font size = 4>[Android架构组件（Android Architecture components)](https://developer.android.com/topic/libraries/architecture/guide.html)是2017谷歌Io大会发布的一个Anroid开发的推荐框架,目前还是Alpha版本。
 
 ###Handing Lifecyles
+
 [android.arch.lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle.html)包内提供了用来创建生命周期可知组件(`lifecycle-aware components`)的接口和类,生命周期可知指的是可以获取到activity和fragment的生命周期方法，并根据生命周期方法执行相应的逻辑方法。
 
 Android中Activity或者fragment的生命周期都是framework层控制的，应用层在适当的生命周期实现相应的逻辑。假如现在有个Activity用来显示当前的位置信息，一般的实现可能是在onStart()方法开启定位，onStop()方法中停止定位，一般的代码实现如下：
@@ -69,6 +71,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 
 [android.arch.lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle.html)包提供了一些类和接口来解决这种问题，下面接收一下这些类和接口：
 ###Lifecycle
+
  [Lifecycle](https://developer.android.com/reference/android/arch/lifecycle/Lifecycle.html)是持有某种组件的生命周期状态信息，比如Activity和Fragment，并且允许其他对象观察这些状态信息。它使用两个枚举来跟踪组件的生命周期状态。
  
 	public enum Event {
@@ -105,7 +108,9 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	    }
 	}
 	aLifecycleOwner.getLifecycle().addObserver(new MyObserver());
+
 ###LifecycleOwner
+
 LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接口的类拥有生命周期。一般的实现是在调用某个回调时会判断下当前的Lifecycle的当前state是否是合适的状态，这样之前的定位代码可以重写为：
 
 	class MyActivity extends LifecycleActivity {
@@ -149,6 +154,7 @@ LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接
 	    }
 	}
 ###LiveData
+
 LiveData是一个data holder，一个里面保存了一个value，并且这个value是可以被观察的，和传统的observable不一样的是，LiveData可以对app组件的生命周期做出响应，LiveData可以指定一个可以观察的Lifecycle，LiveData认为当 Observer的Lifecycle是STARTED或者RESUMED状态的时候，才算是激活状态，再onChaged的时候，才会通知这个Observer。
 
 	public class LocationLiveData extends LiveData<Location> {
@@ -272,6 +278,7 @@ LiveData有以下几个优点：
 - 不用再手动的处理生命周期事件：在需要观察数据的时候，不用担心start或者stop的调用，LiveData自动的处理了这些流程
 
 ###ViewModel
+
 ViewModel是用来存储和管理ui相关的数据，以保证在configuration改变的时候，数据也能存活下来
 activity和fragment都有被Android Framework管理的生命周期，fragment可以决定，什么什么时候destroy或者re-created它们。这样的话在activity或者fragmnet中保存的数据就会丢失。比如activity中有一个users list，当activity重建或者configuration改变的时候，新的activity就得重新获取user list。Activity虽然可以用 onSaveInstanceState()来存储数据，然后再Oncreate方法中从bundle恢复数据，但是这种方式只适合简单的数据，不太适合大量的数据。
 
@@ -304,6 +311,7 @@ activity和fragment都有被Android Framework管理的生命周期，fragment可
 当activity重建的时候，它获取到上一个activity创建的MyViewModel对象，当activity finished的时候，framework会调用ViewModel的onClear()方法来释放资源
 
 ###在Fragment之间共享数据
+
 	public class SharedViewModel extends ViewModel {
 	    private final MutableLiveData<Item> selected = new MutableLiveData<Item>();
 	
@@ -336,6 +344,7 @@ activity和fragment都有被Android Framework管理的生命周期，fragment可
 	}
 
 ###ViewModel的生命周期
+
 <center>![](http://i.imgur.com/iQvS6ze.png)</center>
 
 #项目中使用Architecture components中的Lifecycles
