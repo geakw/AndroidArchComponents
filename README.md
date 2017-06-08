@@ -98,6 +98,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 
 
 <center>![](http://i.imgur.com/xeezBwl.png)</center>
+<center>![](https://github.com/geakw/AndroidArchComponents/blob/master/images/lifecycle-states.png)</center>
 
 可以把states想象成图的节点，events想象成图的节点之间的边
 一个监听具有生命周期的类可以这样写：
@@ -357,6 +358,7 @@ activity和fragment都有被Android Framework管理的生命周期，fragment可
 ### ViewModel的生命周期
 
 <center>![](http://i.imgur.com/iQvS6ze.png)</center>
+<center>![](https://github.com/geakw/AndroidArchComponents/blob/master/images/viewmodel-lifecycle.png)</center>
 
 # 项目中使用Architecture components中的Lifecycles
 
