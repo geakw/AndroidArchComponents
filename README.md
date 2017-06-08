@@ -70,6 +70,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	}
 
 [android.arch.lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle.html)包提供了一些类和接口来解决这种问题，下面接收一下这些类和接口：
+
 ###Lifecycle
 
  [Lifecycle](https://developer.android.com/reference/android/arch/lifecycle/Lifecycle.html)是持有某种组件的生命周期状态信息，比如Activity和Fragment，并且允许其他对象观察这些状态信息。它使用两个枚举来跟踪组件的生命周期状态。
@@ -94,7 +95,10 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	            return compareTo(state) >= 0;
 	        }
 	    }
+
+
 <center>![](http://i.imgur.com/xeezBwl.png)</center>
+
 可以把states想象成图的节点，events想象成图的节点之间的边
 一个监听具有生命周期的类可以这样写：
 
@@ -108,6 +112,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	    }
 	}
 	aLifecycleOwner.getLifecycle().addObserver(new MyObserver());
+
 
 ###LifecycleOwner
 
@@ -153,6 +158,9 @@ LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接
 	        // disconnect if connected
 	    }
 	}
+
+
+
 ###LiveData
 
 LiveData是一个data holder，一个里面保存了一个value，并且这个value是可以被观察的，和传统的observable不一样的是，LiveData可以对app组件的生命周期做出响应，LiveData可以指定一个可以观察的Lifecycle，LiveData认为当 Observer的Lifecycle是STARTED或者RESUMED状态的时候，才算是激活状态，再onChaged的时候，才会通知这个Observer。
@@ -182,6 +190,8 @@ LiveData是一个data holder，一个里面保存了一个value，并且这个va
 	        locationManager.removeUpdates(listener);
 	    }
 	}
+
+
 onActive()
 
 这个方法会在LiveData有处于Active状态的observer时调用
@@ -342,6 +352,7 @@ activity和fragment都有被Android Framework管理的生命周期，fragment可
 	        });
 	    }
 	}
+
 
 ###ViewModel的生命周期
 
