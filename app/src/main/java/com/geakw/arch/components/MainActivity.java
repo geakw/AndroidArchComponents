@@ -13,10 +13,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
     }
 
-    public void onLifecycleClick(View view){
-        Intent intent = new Intent(this,LifeCycleActivity.class);
+    public void onLifecycleClick(View view) {
+        Intent intent = new Intent(this, LifeCycleActivity.class);
         startActivity(intent);
     }
 
+
+    public void onViewModelClick(View view) {
+        Intent intent = new Intent(this, ShareDataActivity.class);
+        startActivity(intent);
+    }
 
 }
