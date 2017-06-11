@@ -42,7 +42,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	    }
 	}
 
-这个逻辑还是比较简单的，但在实际的应用中，这些生命周期方法里面可能有很多类似的代码，这些生命周期代码会变得很长。还有一些情况，比如在开启位置监控的时候，可能要异步检查一些设置，而检查设置的回调可能会在onStop()执行之后，也就是说在onStop()执行之后会调用myLocationListener.start()方法，这种情况下定位服务会一直开启
+这个逻辑还是比较简单的，但在实际的应用中，这些生命周期方法里面可能有很多类似的代码，生命周期代码会变得很长。还有一些情况，比如在开启位置监控的时候，可能要异步检查一些设置，而检查设置的回调可能会在onStop()执行之后，也就是说在onStop()执行之后会调用myLocationListener.start()方法，这种情况下定位服务会一直开启
 	
 	class MyActivity extends AppCompatActivity {
 	    private MyLocationListener myLocationListener;
@@ -69,11 +69,31 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	    }
 	}
 
-[android.arch.lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle.html)包提供了一些类和接口来解决这种问题，下面接收一下这些类和接口：
+[android.arch.lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle.html)包提供了一些类和接口来解决这种问题，下面介绍一下这些类和接口：
+
+###LifecycleOwner
+
+一个拥有Android lifecycle的类，它可以让自定义的组件处理lifecycle的变化，而不用在Activity或者Fragment里实现任何的代码
+
+	/**
+	 * A class that has an Android lifecycle. These  	 * events can be used by custom components to
+	 * handle lifecycle changes without implementing any code inside the 	 * Activity or the Fragment.
+	 *
+	 * @see Lifecycle
+	 */
+	@SuppressWarnings({"WeakerAccess", "unused"})
+	public interface LifecycleOwner {
+	    /**
+	     * Returns the Lifecycle of the provider.
+	     *
+	     * @return The lifecycle of the provider.
+	     */
+	    Lifecycle getLifecycle();
+	}
 
 ### Lifecycle
 
- [Lifecycle](https://developer.android.com/reference/android/arch/lifecycle/Lifecycle.html)是持有某种组件的生命周期状态信息，比如Activity和Fragment，并且允许其他对象观察这些状态信息。它使用两个枚举来跟踪组件的生命周期状态。
+ [Lifecycle](https://developer.android.com/reference/android/arch/lifecycle/Lifecycle.html)是持有LifecycleOwner（比如Activity和Fragment）的抽象类，并且允许其他对象观察这些状态信息。它使用两个枚举来跟踪组件的生命周期状态。
  
 	public enum Event {
 	        ON_CREATE,
@@ -117,7 +137,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 
 ### LifecycleOwner
 
-LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接口的类拥有生命周期。一般的实现是在调用某个回调时会判断下当前的Lifecycle的当前state是否是合适的状态，这样之前的定位代码可以重写为：
+LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接口的类拥有生命周期。一般的实现是在调用某个回调时会判断下当前的Lifecycle的当前state是否是合适的状态，这样之前的定位代码可以重写为，最佳的情况是只在Activity中初始化这些LifecycleObserver，不覆盖其他任何的生命周期方法，因为这些observer是生命周期可知的控件，所以Activity只用初始化这些observer，后面就不用再管了：
 
 	class MyActivity extends LifecycleActivity {
 	    private MyLocationListener myLocationListener;
@@ -164,7 +184,7 @@ LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接
 
 ### LiveData
 
-LiveData是一个data holder，一个里面保存了一个value，并且这个value是可以被观察的，和传统的observable不一样的是，LiveData可以对app组件的生命周期做出响应，LiveData可以指定一个可以观察的Lifecycle，LiveData认为当 Observer的Lifecycle是STARTED或者RESUMED状态的时候，才算是激活状态，再onChaged的时候，才会通知这个Observer。
+LiveData是一个observable data holder，一个里面保存了一个value，并且这个value是可以被观察的，和传统的observable不一样的是，LiveData可以对app组件的生命周期做出响应，LiveData可以指定一个可以观察的Lifecycle，LiveData认为当 Observer的Lifecycle是STARTED或者RESUMED状态的时候，才算是激活状态，再onChaged的时候，才会通知这个Observer。
 
 	public class LocationLiveData extends LiveData<Location> {
 	    private LocationManager locationManager;
@@ -218,7 +238,7 @@ setValue()
 	    }
 	}
 
-observer方法的方法声明是public void observe(LifecycleOwner owner, Observer<T> observer)，可以看到第一个参数是LifecycleOwner，这表明这个observer是和一个Lifecycle绑定的在中情况下：
+observer方法的方法声明是public void observe(LifecycleOwner owner, Observer<T> observer)，可以看到第一个参数是LifecycleOwner，这表明这个observer是和一个Lifecycle绑定的，所以在observer观察LiveData的时候，我们就不用再关心在什么时候取消观察者了，LiveData会在合适的是时候自动进行取消：
 
 - 如果Lifecycle处于非激活状态，即使在value改变的时候，observer也不会被调用
 - 如果Lifecycle处于destroyed，该observer就会被自动移除
@@ -290,10 +310,10 @@ LiveData有以下几个优点：
 
 ### ViewModel
 
-ViewModel是用来存储和管理ui相关的数据，以保证在configuration改变的时候，数据也能存活下来
+ViewModel是用来存储和管理ui相关的数据，以保证在configuration改变的时候，数据也能存活下来，ViewModel里面不能引用任何的View。
 activity和fragment都有被Android Framework管理的生命周期，fragment可以决定，什么什么时候destroy或者re-created它们。这样的话在activity或者fragmnet中保存的数据就会丢失。比如activity中有一个users list，当activity重建或者configuration改变的时候，新的activity就得重新获取user list。Activity虽然可以用 onSaveInstanceState()来存储数据，然后再Oncreate方法中从bundle恢复数据，但是这种方式只适合简单的数据，不太适合大量的数据。
 
-另一个问题是这些ui控件经常需要做一些比较耗时的异步操作，需要的destroy的时候清理这些异步操作，以防止内存泄露。而且在重建这些节目的时候，会重新发起相同的请求。
+另一个问题是这些ui控件经常需要做一些比较耗时的异步操作，需要在destroy的时候清理这些异步操作，以防止内存泄露。而且在重建这些组件的时候，会重新发起相同的请求。
 这些ui组件也需要处理用户交互操作，和与操作系统交互，一个类可能要处理很多的工作而不是把工作代理的其他类里面，导致类里面代码量膨胀，可维护性变差。
 
 	public class MyViewModel extends ViewModel {
