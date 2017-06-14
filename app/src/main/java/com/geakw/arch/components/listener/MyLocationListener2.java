@@ -19,7 +19,7 @@ public class MyLocationListener2 implements LifecycleObserver {
         mContext = context;
         mCallback = callback;
         this.lifecycle = lifecycle;
-        lifecycle.removeObserver(this);
+        lifecycle.addObserver(this);
     }
 
     public void enable() {

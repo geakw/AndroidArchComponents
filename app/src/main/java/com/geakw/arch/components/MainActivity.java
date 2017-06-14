@@ -19,9 +19,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+
     public void onViewModelClick(View view) {
         Intent intent = new Intent(this, ShareDataActivity.class);
         startActivity(intent);
+    }
+
+
+
+    public void onRotate(View view){
+        Intent intent = new Intent(this, RotateActivity.class);
+        startActivity(intent);
+
     }
 
 }

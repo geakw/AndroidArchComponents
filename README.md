@@ -68,12 +68,13 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	        myLocationListener.stop();
 	    }
 	}
+![](https://github.com/geakw/AndroidArchComponents/raw/master/images/location_error.png)
 
 [android.arch.lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle.html)包提供了一些类和接口来解决这种问题，下面介绍一下这些类和接口：
 
 ###LifecycleOwner
 
-一个拥有Android lifecycle的类，它可以让自定义的组件处理lifecycle的变化，而不用在Activity或者Fragment里实现任何的代码
+表示继承该接口的类拥有生命周期，它可以让自定义的组件处理lifecycle的变化，而不用在Activity或者Fragment里实现任何的代码一般的实现,在调用某个回调时会判断下当前的Lifecycle的当前state是否是合适的状态.
 
 	/**
 	 * A class that has an Android lifecycle. These  	 * events can be used by custom components to
@@ -134,10 +135,7 @@ Android中Activity或者fragment的生命周期都是framework层控制的，应
 	}
 	aLifecycleOwner.getLifecycle().addObserver(new MyObserver());
 
-
-### LifecycleOwner
-
-LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接口的类拥有生命周期。一般的实现是在调用某个回调时会判断下当前的Lifecycle的当前state是否是合适的状态，这样之前的定位代码可以重写为，最佳的情况是只在Activity中初始化这些LifecycleObserver，不覆盖其他任何的生命周期方法，因为这些observer是生命周期可知的控件，所以Activity只用初始化这些observer，后面就不用再管了：
+这样之前的定位代码可以重写为，最佳的情况是只在Activity中初始化这些LifecycleObserver，不覆盖其他任何的生命周期方法，因为这些observer是生命周期可知的控件，所以Activity只用初始化这些observer，后面就不用再管了：
 
 	class MyActivity extends LifecycleActivity {
 	    private MyLocationListener myLocationListener;
@@ -158,6 +156,7 @@ LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接
 	    private boolean enabled = false;
 	    public MyLocationListener(Context context, Lifecycle lifecycle, Callback callback) {
 	       ...
+	       lifecycle.addObserver(this);
 	    }
 	
 	    @OnLifecycleEvent(Lifecycle.Event.ON_START)
@@ -179,12 +178,15 @@ LifecycleOwner是只有一个 getLifecycle()方法的接口，表示继承该接
 	        // disconnect if connected
 	    }
 	}
+	
+注解生命周期方法的调用流程
 
+![](https://github.com/geakw/AndroidArchComponents/raw/master/images/lifecycle.png)
 
 
 ### LiveData
 
-LiveData是一个observable data holder，一个里面保存了一个value，并且这个value是可以被观察的，和传统的observable不一样的是，LiveData可以对app组件的生命周期做出响应，LiveData可以指定一个可以观察的Lifecycle，LiveData认为当 Observer的Lifecycle是STARTED或者RESUMED状态的时候，才算是激活状态，再onChaged的时候，才会通知这个Observer。
+LiveData是一个observable data holder，里面保存了一个value，并且这个value是可以被观察的，和传统的observable不一样的是，LiveData可以对app组件的生命周期做出响应，LiveData可以指定一个可以观察的Lifecycle，LiveData认为当Observer的Lifecycle是STARTED或者RESUMED状态的时候，才算是激活状态，再onChaged的时候，才会通知这个Observer。
 
 	public class LocationLiveData extends LiveData<Location> {
 	    private LocationManager locationManager;
@@ -301,7 +303,7 @@ LiveData还支持转换：
 
 LiveData有以下几个优点：
 
-- 没有内存泄露：因为每个observer都绑定到它们自己的Lifecycle对象，当Lifecycle状态是destroyed的时候会自动清除的个observer
+- 没有内存泄露：因为每个observer都绑定到它们自己的Lifecycle对象，当Lifecycle状态是destroyed的时候会自动清除这个observer
 - stop activity的时候不会引起crash：如果observer的Lifcycle处于inactive状态的时候，不会收到change事件
 - 始终保持最新的数据:如果Lifecycle从inactive到active时，会收到最新的data
 - 如果activity或者fragment重新创建，比如屏幕旋转的时候，它会立即收到最新的data
@@ -310,7 +312,7 @@ LiveData有以下几个优点：
 
 ### ViewModel
 
-ViewModel是用来存储和管理ui相关的数据，以保证在configuration改变的时候，数据也能存活下来，ViewModel里面不能引用任何的View。
+ViewModel是用来存储和管理ui相关的数据，以保证在configuration改变的时候，数据也能存活下来，因为ViewModel在生命周期之外也存在，所以ViewModel里面不能引用任何的View。
 activity和fragment都有被Android Framework管理的生命周期，fragment可以决定，什么什么时候destroy或者re-created它们。这样的话在activity或者fragmnet中保存的数据就会丢失。比如activity中有一个users list，当activity重建或者configuration改变的时候，新的activity就得重新获取user list。Activity虽然可以用 onSaveInstanceState()来存储数据，然后再Oncreate方法中从bundle恢复数据，但是这种方式只适合简单的数据，不太适合大量的数据。
 
 另一个问题是这些ui控件经常需要做一些比较耗时的异步操作，需要在destroy的时候清理这些异步操作，以防止内存泄露。而且在重建这些组件的时候，会重新发起相同的请求。
@@ -373,12 +375,18 @@ activity和fragment都有被Android Framework管理的生命周期，fragment可
 	        });
 	    }
 	}
+	
+	
+
 
 
 ### ViewModel的生命周期
 
 
 ![](https://github.com/geakw/AndroidArchComponents/raw/master/images/viewmodel-lifecycle.png)
+
+![](https://github.com/geakw/AndroidArchComponents/raw/master/images/lifecycles_arch.png)
+
 
 
 # 项目中使用Architecture components中的Lifecycles
