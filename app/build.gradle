@@ -24,5 +24,4 @@ dependencies {
     compile "android.arch.lifecycle:extensions:1.0.0-alpha1"
     annotationProcessor "android.arch.lifecycle:compiler:1.0.0-alpha1"
     implementation 'com.android.support:appcompat-v7:25.3.1'
-    implementation 'com.android.support.constraint:constraint-layout:1.0.2'
 }
